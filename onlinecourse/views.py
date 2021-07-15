@@ -10,7 +10,6 @@ from django.contrib.auth import login, logout, authenticate
 import logging
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
-# Create your views here.
 
 
 def registration_request(request):
@@ -30,8 +29,7 @@ def registration_request(request):
         except:
             logger.error("New user")
         if not user_exist:
-            user = User.objects.create_user(username=username, first_name=first_name, last_name=last_name,
-                                            password=password)
+            user = User.objects.create_user(username=username, first_name=first_name, last_name=last_name, password=password)
             login(request, user)
             return redirect("onlinecourse:index")
         else:
@@ -100,7 +98,7 @@ def enroll(request, course_id):
         course.total_enrollment += 1
         course.save()
 
-    return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=(course.id,)))
+    return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=(course.id)))
 
 
 # Submit View
@@ -108,14 +106,15 @@ def submit(request, course_id):
     course = get_object_or_404(Course, pk=course_id)
     user = request.user
     enrollment = Enrollment.objects.filter(user=user, course=course).get()
+
     submission = Submission.objects.create(enrollment_id = enrollment.id)
     answers =  extract_answers(request)
 
     for a in answers:
         temp_c = Choice.objects.filter(id = int(a)).get()
         submission.choices.add(temp_c)
-    
-    submission.save()
+
+    submission.save()         
     return HttpResponseRedirect(reverse(viewname='onlinecourse:show_exam_result', args=(course.id, submission.id)))
 
 
@@ -136,27 +135,27 @@ def show_exam_result(request, course_id, submission_id):
     submission = get_object_or_404(Submission, pk=submission_id)
     total = 0
     total_user = 0
-    q_results = {}
-    c_submits = {}
-    c_results = {}
+    qs_results = {}
+    ch_submits = {}
+    ch_results = {}
     for q in course.question_set.all():
-        q_total = 0
-        q_total_user = 0
+        qs_total = 0
+        qs_total_user = 0
         for c in q.choice_set.all():
-            q_total += 1
+            qs_total += 1
             temp_right = c.is_correct
             count = submission.choices.filter(id=c.id).count()
 
             temp_user = count > 0
-            c_submits[c.id] = temp_user
-            c_results[c.id] = temp_user == temp_right
+            ch_submits[c.id] = temp_user
+            ch_results[c.id] = temp_user == temp_right
 
             if temp_user == temp_right:
-                q_total_user += 1
+                qs_total_user += 1
         
-        q_results[q.id] = q.grade*(q_total_user / q_total)
+        qs_results[q.id] = q.grade*(qs_total_user / qs_total)
         total += q.grade
-        total_user  += q_results[q.id]
+        total_user  += qs_results[q.id]
     
     context = {}
     context["course"] = course
@@ -165,9 +164,9 @@ def show_exam_result(request, course_id, submission_id):
     context["total"] = total
     context["total_user"] = total_user
 
-    context["q_results"] = q_results
-    context["c_submits"] = c_submits
-    context["c_results"] = c_results
+    context["qs_results"] = qs_results
+    context["ch_submits"] = ch_submits
+    context["ch_results"] = ch_results
 
     context["grade"] = int((total_user / total)*100)
 
